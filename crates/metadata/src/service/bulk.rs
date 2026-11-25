@@ -299,7 +299,10 @@ impl MetadataService {
         let mut missing = Vec::new();
         for meta in overlay.games.values() {
             // An entry that only holds a status was never a game to search for.
-            if meta.extra.get(STATUS_ONLY_KEY) == Some(&serde_json::Value::Bool(true)) {
+            // Imported PC apps are not games either.
+            if meta.extra.get(STATUS_ONLY_KEY) == Some(&serde_json::Value::Bool(true))
+                || meta.launch_kind == heronite_data::apps::LAUNCH_KIND
+            {
                 continue;
             }
             let key = metadata_key(&meta.runner, &meta.app_name);

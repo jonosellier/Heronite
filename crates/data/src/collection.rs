@@ -346,6 +346,7 @@ pub fn store_facet(source: Option<&str>, runner: &str, steam_entry: bool, also_o
         ("gog", _) | (_, "gog") => "GOG",
         ("amazon", _) | (_, "nile") => "Amazon Games",
         ("xbox", _) => "Xbox",
+        ("apps", _) => crate::apps::NAME,
         (_, "zoom") => "Zoom Platform",
         ("emulator", _) => heronite_i18n::tr!("Emulated"),
         ("lutris", _) => "Lutris",

@@ -19,19 +19,20 @@ use super::side_nav::{self, Dot};
 use super::{Page, PageEvent};
 use crate::console::Pad;
 use crate::icons::Icon;
+use crate::services::apps_library::AppsLibrary;
 use crate::services::clients::{Activity, ClientState};
 use crate::services::downloads::Store;
 use crate::services::steam_library::{SteamState, Summary};
 use crate::services::xbox_library::Found;
 
 /// The store pages, in the order of the list (and of LB / RB).
-pub const PAGES: [Page; 9] =
-    [Page::Steam, Page::Epic, Page::Gog, Page::Amazon, Page::Xbox, Page::BattleNet, Page::Ea, Page::Ubisoft, Page::Rockstar];
+pub const PAGES: [Page; 10] =
+    [Page::Steam, Page::Epic, Page::Gog, Page::Amazon, Page::Xbox, Page::Apps, Page::BattleNet, Page::Ea, Page::Ubisoft, Page::Rockstar];
 
 /// The list's groups: the stores Heronite signs in to or reads, then the
 /// ones whose own program runs (under Wine on Linux).
 const GROUPS: [(&str, &[Page]); 2] = [
-    (n_!("Stores"), &[Page::Steam, Page::Epic, Page::Gog, Page::Amazon, Page::Xbox]),
+    (n_!("Stores"), &[Page::Steam, Page::Epic, Page::Gog, Page::Amazon, Page::Xbox, Page::Apps]),
     (n_!("Store apps"), &[Page::BattleNet, Page::Ea, Page::Ubisoft, Page::Rockstar]),
 ];
 
@@ -105,6 +106,19 @@ fn xbox_glance(found: Option<&Found>, syncing: bool) -> Glance {
     }
 }
 
+/// Apps: non-game Windows apps found on this PC.
+fn apps_glance(enabled: bool, syncing: bool, count: usize) -> Glance {
+    if !enabled {
+        glance(Dot::Off, tr!("Off"))
+    } else if syncing {
+        glance(Dot::Busy, tr!("Scanning\u{2026}"))
+    } else if count == 0 {
+        glance(Dot::On, tr!("No apps yet"))
+    } else {
+        glance(Dot::On, trn!(count, "{n} app", "{n} apps"))
+    }
+}
+
 /// A store whose own program runs (under Wine on Linux).
 fn client_glance(st: &ClientState) -> Glance {
     if matches!(st.activity, Activity::SettingUp(_)) {
@@ -149,6 +163,10 @@ fn glance_of(page: Page, cx: &App) -> Glance {
             let s = s.read(cx);
             xbox_glance(s.found.as_ref(), s.syncing)
         }),
+        Page::Apps => crate::services::apps_library_started(cx).map_or_else(unknown, |s| {
+            let s: &AppsLibrary = s.read(cx);
+            apps_glance(s.prefs.enabled, s.syncing, s.candidates.len())
+        }),
         Page::BattleNet => client(Client::BattleNet),
         Page::Ea => client(Client::Ea),
         Page::Ubisoft => client(Client::Ubisoft),
@@ -170,6 +188,7 @@ pub fn watch<V: 'static>(cx: &mut Context<V>) {
     observe(crate::services::steam_library_started(cx), &shown, cx);
     observe(crate::services::clients_started(cx), &shown, cx);
     observe(crate::services::xbox_library_started(cx), &shown, cx);
+    observe(crate::services::apps_library_started(cx), &shown, cx);
 }
 
 fn observe<V: 'static, T: 'static>(entity: Option<Entity<T>>, shown: &Rc<RefCell<Vec<Glance>>>, cx: &mut Context<V>) {
@@ -276,10 +295,12 @@ mod tests {
         assert_eq!(switch(Page::Steam, Pad::RB), Some(Page::Epic));
         assert_eq!(switch(Page::Epic, Pad::RB), Some(Page::Gog));
         assert_eq!(switch(Page::Amazon, Pad::RB), Some(Page::Xbox));
-        assert_eq!(switch(Page::Xbox, Pad::RB), Some(Page::BattleNet));
+        assert_eq!(switch(Page::Xbox, Pad::RB), Some(Page::Apps));
+        assert_eq!(switch(Page::Apps, Pad::RB), Some(Page::BattleNet));
         assert_eq!(switch(Page::Rockstar, Pad::RB), Some(Page::Steam));
         assert_eq!(switch(Page::Steam, Pad::LB), Some(Page::Rockstar));
-        assert_eq!(switch(Page::BattleNet, Pad::LB), Some(Page::Xbox));
+        assert_eq!(switch(Page::BattleNet, Pad::LB), Some(Page::Apps));
+        assert_eq!(switch(Page::Apps, Pad::LB), Some(Page::Xbox));
         assert_eq!(switch(Page::Gog, Pad::A), None);
         assert_eq!(switch(Page::Downloads, Pad::RB), None);
         assert!(is_store_page(Page::Gog) && is_store_page(Page::Ubisoft) && !is_store_page(Page::Emulators));
@@ -319,6 +340,17 @@ mod tests {
         assert_eq!(xbox_glance(None, true).dot, Dot::Busy);
         assert_eq!(xbox_glance(Some(&Found::default()), false).dot, Dot::Off);
         assert_eq!(xbox_glance(Some(&Found { xbox_app: true, ..Default::default() }), false).dot, Dot::On);
+    }
+
+    #[test]
+    fn apps_says_whether_it_is_enabled_scanning_or_found_apps() {
+        use super::{apps_glance, Dot};
+        assert_eq!(apps_glance(false, false, 3).dot, Dot::Off);
+        assert_eq!(apps_glance(true, true, 0).dot, Dot::Busy);
+        assert_eq!(apps_glance(true, false, 0).dot, Dot::On);
+        let on = apps_glance(true, false, 5);
+        assert_eq!(on.dot, Dot::On);
+        assert!(on.line.contains('5'));
     }
 
     #[test]

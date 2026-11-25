@@ -168,7 +168,7 @@ impl Launcher {
         let control = Arc::new(Control {
             abort: AtomicBool::new(false),
             kill: AtomicBool::new(false),
-            record: AtomicBool::new(true),
+            record: AtomicBool::new(req.plan.process().is_none_or(|plan| plan.records_session())),
             steam: matches!(req.plan, LaunchPlan::SteamUri { .. }),
             pid: AtomicU32::new(0),
             stop,

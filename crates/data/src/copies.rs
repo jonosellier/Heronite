@@ -134,10 +134,10 @@ fn stores(game: &CollectionGame) -> BTreeSet<&str> {
     out
 }
 
-/// Emulated and browser games never link by themselves (same rule as Steam twins).
+/// Emulated, browser, and imported PC app entries never link by themselves (same rule as Steam twins).
 fn joinable(game: &CollectionGame) -> bool {
     let browser = game.game.install.platform.as_deref().is_some_and(|p| p.eq_ignore_ascii_case("browser"));
-    !browser && game.launch_kind.as_deref() != Some("emulator")
+    !browser && !matches!(game.launch_kind.as_deref(), Some("emulator") | Some(crate::apps::LAUNCH_KIND))
 }
 
 /// The ids two copies may share: `igdb:<id>` and `steam:<app id>`.

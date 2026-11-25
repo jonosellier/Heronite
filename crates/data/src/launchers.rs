@@ -21,6 +21,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::apps;
 use crate::clients::{self, Client};
 use crate::json_store;
 use crate::models::{Extra, LocalGameMeta, LocalMetaFile};
@@ -143,8 +144,9 @@ pub struct Managed {
 /// The folders and Wine prefixes that are not this app's to delete: those
 /// of the games Lutris, Bottles, Faugus and Playnite start (the Collection's entries of
 /// [`LAUNCH_KIND`]), each store client's Wine prefix and the folders of
-/// its games ([`clients::LAUNCH_KIND`]), and the folders of the Xbox app's
-/// games ([`xbox::LAUNCH_KIND`]), installed or not. Unreadable files give
+/// its games ([`clients::LAUNCH_KIND`]), the folders of the Xbox app's games
+/// ([`xbox::LAUNCH_KIND`]), and imported Apps entries, installed or not.
+/// Unreadable files give
 /// none. `home` expands the `~` of a client's prefix setting.
 pub fn managed_paths(paths: &DataPaths, home: &str) -> Vec<Managed> {
     let metas: LocalMetaFile = json_store::read(&paths.local_meta()).unwrap_or_default();
@@ -157,6 +159,7 @@ pub fn managed_paths(paths: &DataPaths, home: &str) -> Vec<Managed> {
                 LAUNCH_KIND => Launcher::from_source(&m.source)?.name(),
                 clients::LAUNCH_KIND => Client::from_id(&m.source)?.name(),
                 xbox::LAUNCH_KIND => xbox::NAME,
+                apps::LAUNCH_KIND => apps::NAME,
                 // Brought over from Playnite: its folder (often one of many
                 // ROMs) is still Playnite's too.
                 _ if m.source == Launcher::Playnite.id() => Launcher::Playnite.name(),
@@ -368,5 +371,23 @@ mod tests {
         let kept: Vec<_> = managed.iter().map(|m| (m.path.to_str().unwrap(), m.owner, m.title.as_str())).collect();
         assert_eq!(kept, [(r"D:\XboxGames\Game\Content", "Xbox", "Game")]);
         assert_eq!(managed_by(&managed, Path::new(r"D:\XboxGames")).map(|m| m.owner), Some("Xbox"));
+    }
+
+    #[test]
+    fn imported_app_folders_are_managed_and_never_owned_by_heronite() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = DataPaths::at(dir.path().join("heronite"));
+        let install = dir.path().join("Programs").join("Sample");
+        write_collection(
+            &paths,
+            serde_json::json!({"games": [{"app_name": "app_123", "install": {"install_path": install}}]}),
+            serde_json::json!({"games": {
+                "app_123": {"appName": "app_123", "runner": "sideload", "source": "apps", "launchKind": "app", "title": "Sample"}}}),
+        );
+        let managed = managed_paths(&paths, "");
+        assert_eq!(managed.len(), 1);
+        assert_eq!(managed[0].owner, "Apps");
+        assert_eq!(managed[0].app_name, "app_123");
+        assert_eq!(managed[0].path, install);
     }
 }

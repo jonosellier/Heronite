@@ -3528,6 +3528,7 @@ dependencies = [
  "gpui-zoom",
  "heronite-achievements",
  "heronite-amazon",
+ "heronite-apps",
  "heronite-backup",
  "heronite-clients",
  "heronite-data",
@@ -3611,6 +3612,18 @@ dependencies = [
  "regex",
  "rusqlite",
  "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "heronite-apps"
+version = "1.8.0"
+dependencies = [
+ "anyhow",
+ "heronite-data",
+ "heronite-platform",
+ "log",
  "serde_json",
  "tempfile",
 ]

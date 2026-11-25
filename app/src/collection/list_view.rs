@@ -242,7 +242,7 @@ impl CollectionView {
         if let Some(i) = games.iter().position(|g| g.key == key) {
             games[..=i].rotate_right(1);
         }
-        let mut icons = super::store_badges::game_icons(&games);
+        let mut icons = super::store_badges::game_icons(&games, self.apps_prefs.show_badges);
         if !a.cover_stores_all {
             icons.truncate(1);
         }

@@ -1,7 +1,7 @@
 //! The parts of the app each system has.
 //!
-//! Linux has everything but Windows' own store (Xbox) and the first-start
-//! copy of Heroic ([`Feature::HeroicMigration`], off on every system),
+//! Linux has everything but Windows' own stores (Xbox and Apps) and the
+//! first-start copy of Heroic ([`Feature::HeroicMigration`], off on every system),
 //! except what a Flatpak sandbox cannot do ([`crate::flatpak`]). On Windows the port is
 //! under way (`docs/WINDOWS-MIGRATION.md`): a part turns on here once it
 //! works there.
@@ -80,13 +80,15 @@ pub enum Feature {
     /// The Microsoft Store and PC Game Pass games the Xbox app installs
     /// (Windows' own packages): its page and the games it brings in.
     XboxStore,
+    /// The launchable Windows applications this PC has installed.
+    AppsStore,
     /// The mods of a game (`docs/MODS.md`): its manager, Settings → Mods,
     /// the mod sites' links and applying the mods when the game starts.
     Mods,
 }
 
 impl Feature {
-    pub const ALL: [Feature; 23] = [
+    pub const ALL: [Feature; 24] = [
         Feature::Wine,
         Feature::EpicStore,
         Feature::GogStore,
@@ -109,6 +111,7 @@ impl Feature {
         Feature::DesktopShortcuts,
         Feature::Capture,
         Feature::XboxStore,
+        Feature::AppsStore,
         Feature::Mods,
     ];
 
@@ -137,6 +140,7 @@ impl Feature {
             Feature::DesktopShortcuts => "desktop-shortcuts",
             Feature::Capture => "capture",
             Feature::XboxStore => "xbox",
+            Feature::AppsStore => "apps",
             Feature::Mods => "mods",
         }
     }
@@ -171,7 +175,7 @@ pub fn any_store() -> bool {
 const fn built_in(feature: Feature) -> bool {
     if cfg!(target_os = "linux") {
         // Packages of the Microsoft Store exist on Windows only.
-        return !matches!(feature, Feature::XboxStore | Feature::HeroicMigration);
+        return !matches!(feature, Feature::XboxStore | Feature::AppsStore | Feature::HeroicMigration);
     }
     match feature {
         // Ported to Windows.
@@ -191,6 +195,7 @@ const fn built_in(feature: Feature) -> bool {
         | Feature::LauncherImports
         | Feature::SteamGameSettings
         | Feature::XboxStore => true,
+        Feature::AppsStore => cfg!(windows),
         Feature::Overlay => cfg!(windows),
         // Mods on Windows wait until mod archives open without 7-Zip or
         // bsdtar on the PATH, and the game folder is put back reliably.
@@ -266,11 +271,16 @@ mod tests {
         // Heroic's games come in only from Settings → Other launchers.
         assert!(!built_in(Feature::HeroicMigration));
         if cfg!(target_os = "linux") {
-            assert!(Feature::ALL.into_iter().filter(|f| !matches!(f, Feature::XboxStore | Feature::HeroicMigration)).all(built_in));
+            assert!(Feature::ALL
+                .into_iter()
+                .filter(|f| !matches!(f, Feature::XboxStore | Feature::AppsStore | Feature::HeroicMigration))
+                .all(built_in));
             assert!(!built_in(Feature::XboxStore));
+            assert!(!built_in(Feature::AppsStore));
         }
         if cfg!(windows) {
             assert!(built_in(Feature::XboxStore));
+            assert!(built_in(Feature::AppsStore));
             assert!(built_in(Feature::SteamGameSettings), "the launch options line");
             assert!(!built_in(Feature::Mods), "the mod manager is Linux only for now");
         }

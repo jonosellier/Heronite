@@ -16,6 +16,7 @@ use super::CollectionView;
 use crate::dialogs::launch_state::{LaunchStateDialog, StateRow, ThumbRaw};
 use crate::dialogs::pick_rom::PickRomDialog;
 use crate::dialogs::scan_roms::{ScanInitial, ScanRomsDialog};
+use crate::services::apps_library::AppsLibraryEvent;
 use crate::services::steam_library::SteamLibraryEvent;
 use crate::services::xbox_library::XboxLibraryEvent;
 use heronite_i18n::{tr, trn};
@@ -223,6 +224,9 @@ impl CollectionView {
                 if heronite_platform::supported(heronite_platform::Feature::XboxStore) {
                     crate::services::xbox_library(cx).update(cx, |s, cx| s.sync_quietly(cx));
                 }
+                if heronite_platform::supported(heronite_platform::Feature::AppsStore) {
+                    crate::services::apps_library(cx).update(cx, |s, cx| s.sync_quietly(cx));
+                }
                 // `reload` skips when a reload is in flight.
                 this.refreshing = false;
                 this.after_rom_scan(res, false, cx);
@@ -334,6 +338,18 @@ impl CollectionView {
                 }
                 if report.added + report.updated > 0 {
                     this.reload(cx);
+                }
+            })
+            .detach();
+        }
+        if heronite_platform::supported(heronite_platform::Feature::AppsStore) {
+            let apps = crate::services::apps_library(cx);
+            cx.subscribe(&apps, |this, _, ev: &AppsLibraryEvent, cx| {
+                if let AppsLibraryEvent::Synced(report) = ev {
+                    if report.added > 0 {
+                        let text = trn!(report.added, "Added {n} app from {launcher}", "Added {n} apps from {launcher}", launcher = heronite_data::apps::NAME);
+                        this.show_toast(text, false, cx);
+                    }
                 }
             })
             .detach();

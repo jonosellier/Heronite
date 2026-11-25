@@ -50,14 +50,22 @@ pub fn next_install_state(
         };
     }
 
-    // Installed in the launcher, store client or Xbox app it came from (their
-    // sync says so; there is no executable), while its folder is there.
+    // Installed in the launcher, store client, Xbox app, or Apps store it came
+    // from (their sync says so), while its folder is there.
     if matches!(
         meta.launch_kind.as_str(),
-        heronite_data::launchers::LAUNCH_KIND | heronite_data::clients::LAUNCH_KIND | heronite_data::xbox::LAUNCH_KIND
+        heronite_data::launchers::LAUNCH_KIND
+            | heronite_data::clients::LAUNCH_KIND
+            | heronite_data::xbox::LAUNCH_KIND
+            | heronite_data::apps::LAUNCH_KIND
     ) {
         let folder = game.install.install_path.as_deref().filter(|f| !f.is_empty());
-        return InstallState { is_installed: game.is_installed && folder.is_none_or(|f| probe.exists(f)), executable: String::new() };
+        let exe = if meta.launch_kind == heronite_data::apps::LAUNCH_KIND {
+            game.install.executable.clone().unwrap_or_default()
+        } else {
+            String::new()
+        };
+        return InstallState { is_installed: game.is_installed && folder.is_none_or(|f| probe.exists(f)), executable: exe };
     }
 
     if meta.launch_kind == "emulator" {

@@ -11,6 +11,7 @@
 pub mod actions;
 pub mod anticheat_data;
 pub mod antimicrox;
+pub mod apps;
 mod args;
 mod clients;
 pub mod companions;

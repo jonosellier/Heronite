@@ -7,6 +7,7 @@
 //! UI thread, shared files only through the backend crates. Lay the content
 //! out with [`sheet`] so pages share the chrome, width and padding.
 
+pub mod apps;
 pub mod clients;
 pub mod commands;
 pub mod downloads;
@@ -45,6 +46,9 @@ pub enum Page {
     /// The Xbox page of the Stores (Windows): the Microsoft Store and PC Game
     /// Pass games installed as packages.
     Xbox,
+    /// The Apps page of the Stores (Windows): non-game apps and tools from
+    /// the Start Menu and installed packages.
+    Apps,
     /// The pages of the Stores that run the store's own program, under Wine
     /// on Linux (`heronite_clients`).
     BattleNet,
@@ -69,6 +73,7 @@ impl Page {
             Page::Amazon => "Amazon Games",
             Page::Steam => "Steam",
             Page::Xbox => "Xbox",
+            Page::Apps => tr!("Apps"),
             Page::BattleNet => "Battle.net",
             Page::Ea => "EA app",
             Page::Ubisoft => "Ubisoft Connect",
@@ -89,6 +94,7 @@ impl Page {
             Page::Amazon => Icon::BrandAmazon,
             Page::Steam => Icon::BrandSteam,
             Page::Xbox => Icon::ShoppingBag,
+            Page::Apps => Icon::Computer,
             Page::BattleNet => Icon::BrandBattleNet,
             Page::Ea => Icon::BrandEa,
             Page::Ubisoft => Icon::BrandUbisoft,
@@ -109,6 +115,7 @@ impl Page {
             Page::Gog => supported(Feature::GogStore),
             Page::Amazon => supported(Feature::AmazonStore),
             Page::Xbox => supported(Feature::XboxStore),
+            Page::Apps => supported(Feature::AppsStore),
             Page::BattleNet | Page::Ea | Page::Ubisoft | Page::Rockstar => supported(Feature::StoreClients),
             Page::WineManager => supported(Feature::Wine),
             Page::Emulators => supported(Feature::Emulation),
@@ -137,6 +144,7 @@ impl Page {
             "amazon" => Some(Page::Amazon),
             "steam" => Some(Page::Steam),
             "xbox" => Some(Page::Xbox),
+            "apps" => Some(Page::Apps),
             "battlenet" => Some(Page::BattleNet),
             "ea" => Some(Page::Ea),
             "ubisoft" => Some(Page::Ubisoft),

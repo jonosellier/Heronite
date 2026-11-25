@@ -200,7 +200,7 @@ impl CollectionView {
         let dash = || "\u{2014}".to_string();
         let played = played_time(g).unwrap_or_else(dash);
         let last = g.last_played.as_deref().and_then(played_ago).unwrap_or_else(|| tr!("Never").to_string());
-        let icon = store_badges::game_icons(&self.with_copies(&g.key)).first().copied();
+        let icon = store_badges::game_icons(&self.with_copies(&g.key), self.apps_prefs.show_badges).first().copied();
         let platform =
             div().gap(u(7.)).children(icon.map(|i| crate::ui::icon(i, u(17.), theme::text_primary()))).child(g.source_label.to_string());
         let mut row = div()

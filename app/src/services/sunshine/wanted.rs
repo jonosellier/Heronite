@@ -31,6 +31,7 @@ pub fn picked(lib: &Library, games: Games) -> impl Iterator<Item = &Arc<Collecti
     lib.games.iter().filter(move |g| {
         g.installed
             && !g.hidden
+            && !g.is_app()
             && g.game.install.is_dlc != Some(true)
             && g.launch_kind.as_deref() != Some("unavailable")
             && (games == Games::Installed || g.favourite)

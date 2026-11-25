@@ -147,6 +147,7 @@ pub struct CollectionView {
     first_frame_logged: bool,
     data_paths: DataPaths,
     app_paths: AppPaths,
+    apps_prefs: heronite_data::apps::AppPrefs,
     lib: Option<Arc<Library>>,
     wiki: Arc<WikiCache>,
     /// Games whose HowLongToBeat times were looked up this session.
@@ -309,6 +310,7 @@ impl CollectionView {
             }
         });
         let data_paths = DataPaths::detect();
+        let apps_prefs = heronite_data::apps::AppPrefs::load(&data_paths);
         let app_paths = AppPaths::for_data(&data_paths);
         let mut ui = UiState::load(&app_paths);
         // A switch left on stays off until the PIN is typed, in the file too
@@ -397,6 +399,19 @@ impl CollectionView {
         if let Some(updater) = crate::services::update::get(cx) {
             cx.observe(&updater, |_, _, cx| cx.notify()).detach();
         }
+        let apps_library = crate::services::apps_library(cx);
+        cx.subscribe(&apps_library, |this, _, ev: &crate::services::apps_library::AppsLibraryEvent, cx| match ev {
+            crate::services::apps_library::AppsLibraryEvent::Synced(report) if report.added + report.updated + report.removed > 0 => {
+                this.reload(cx);
+            }
+            crate::services::apps_library::AppsLibraryEvent::PrefsChanged => {
+                this.apps_prefs = heronite_data::apps::AppPrefs::load(&this.data_paths);
+                this.refresh_groups();
+                cx.notify();
+            }
+            crate::services::apps_library::AppsLibraryEvent::Synced(_) => {}
+        })
+        .detach();
 
         let search_input = Self::new_search_input(window, cx);
         let view_menu = view_menu::ViewMenu::new(window, cx);
@@ -406,6 +421,7 @@ impl CollectionView {
             first_frame_logged: false,
             data_paths,
             app_paths,
+            apps_prefs,
             lib: None,
             wiki: Arc::new(WikiCache::default()),
             hltb_tried: Default::default(),

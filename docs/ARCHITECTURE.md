@@ -48,6 +48,9 @@ app (bin heronite-rs) ── GPUI UI, desktop integration
  │                      Xbox app installs (Windows packages): found
  │                      among the user's packages, kept in the
  │                      Collection                                   → data, platform
+ ├─ heronite-apps       Windows Start Menu shortcuts and packaged apps:
+ │                      scanned on opt-in, classified against games,
+ │                      kept as local Apps-store entries              → data, platform
  ├─ heronite-import     games of Heroic, Lutris, Bottles, Faugus and Playnite
  │                      brought into the Collection                  → data
  ├─ heronite-installer  games from YAML install scripts              → data, launch, emulation

@@ -257,6 +257,7 @@ fn page_name_en(p: Page) -> &'static str {
         Page::Amazon => "amazon games",
         Page::Steam => "steam",
         Page::Xbox => "xbox microsoft store",
+        Page::Apps => "apps programs applications tools windows",
         Page::BattleNet => "battle.net",
         Page::Ea => "ea app",
         Page::Ubisoft => "ubisoft connect",
@@ -296,6 +297,7 @@ pub(super) fn static_entries() -> Vec<Entry> {
     v.push(page(Page::Amazon, tr!("Account and library"), "", "amazon prime gaming store account login nile loja conta entrar biblioteca"));
     v.push(page(Page::Steam, tr!("Your Steam library"), "", "steam valve store library import loja biblioteca importar"));
     v.push(page(Page::Xbox, tr!("Microsoft Store and PC Game Pass games"), "", "xbox microsoft store game pass gamepass loja jogos"));
+    v.push(page(Page::Apps, tr!("Non-game Windows apps and tools"), "", "apps programs applications tools start menu windows"));
     // On Windows the clients run as they are.
     let native = cfg!(windows);
     let blizzard = if native { tr!("Blizzard games") } else { tr!("Blizzard games, under Wine") };

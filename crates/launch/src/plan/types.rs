@@ -50,6 +50,9 @@ pub enum WineRuntime {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ProcessPlan {
     pub command: Command,
+    /// `Some(false)` for fire-and-forget launches that must not record
+    /// timestamps, sessions or recent games.
+    pub record_session: Option<bool>,
     pub stop: StopSpec,
     /// Directories to create first (the Wine prefix).
     pub create_dirs: Vec<String>,
@@ -92,6 +95,12 @@ pub struct ProcessPlan {
     /// Windows: the card the program asks Windows for, written right before
     /// it starts and put back after (see [`crate::gpu::preference`]).
     pub gpu_preference: Option<crate::gpu::preference::Preference>,
+}
+
+impl ProcessPlan {
+    pub fn records_session(&self) -> bool {
+        self.record_session != Some(false)
+    }
 }
 
 /// How to find a game another launcher started when the command that asked

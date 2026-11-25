@@ -108,6 +108,11 @@ impl CollectionView {
     pub(super) fn keeps_game(&self, g: &heronite_data::CollectionGame, statuses: &[heronite_data::models::CompletionStatus]) -> bool {
         let ui = &self.ui;
         self.in_picked_categories(g)
+            && heronite_data::apps::visible_in_main_library(
+                g,
+                &self.apps_prefs,
+                ui.facet_filters.store.iter().any(|store| store.eq_ignore_ascii_case(heronite_data::apps::NAME)),
+            )
             && (!ui.only.updates || self.update_apps.contains(&g.app_name))
             && (ui.statuses.is_empty()
                 || ui.statuses.contains(&heronite_data::status::resolve_status_id(g.status_raw.as_deref(), statuses)))

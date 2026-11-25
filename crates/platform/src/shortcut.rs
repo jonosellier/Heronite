@@ -80,12 +80,29 @@ pub fn encode(link: &Link) -> io::Result<Vec<u8>> {
 
 /// What the `.lnk` file `bytes` holds.
 pub fn decode(bytes: &[u8]) -> io::Result<Link> {
+    decode_with_resolve(bytes, false)
+}
+
+/// Reads and resolves `path` without showing UI, searching for a missing
+/// target, tracking the shortcut or updating it.
+pub fn read_resolved(path: &Path) -> io::Result<Link> {
+    decode_with_resolve(&std::fs::read(path)?, true)
+}
+
+fn decode_with_resolve(bytes: &[u8], resolve: bool) -> io::Result<Link> {
     let _com = Com::init(COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     // SAFETY: as in `encode`; the buffers outlive the calls that fill them.
     unsafe {
         let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).map_err(err)?;
         let stream = SHCreateMemStream(Some(bytes)).ok_or_else(|| io::Error::other("SHCreateMemStream failed"))?;
         shell_link.cast::<IPersistStream>().map_err(err)?.Load(&stream).map_err(err)?;
+        if resolve {
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::Shell::{SLR_NOSEARCH, SLR_NOTRACK, SLR_NOUPDATE, SLR_NO_UI};
+            shell_link
+                .Resolve(HWND(std::ptr::null_mut()), (SLR_NO_UI.0 | SLR_NOSEARCH.0 | SLR_NOTRACK.0 | SLR_NOUPDATE.0) as u32)
+                .map_err(err)?;
+        }
         let mut buf = vec![0u16; BUFFER];
         shell_link.GetPath(&mut buf, std::ptr::null_mut(), SLGP_RAWPATH.0 as u32).map_err(err)?;
         let target = PathBuf::from(wide(&buf));

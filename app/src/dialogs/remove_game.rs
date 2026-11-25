@@ -7,7 +7,8 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 use heronite_data::clients::{self, Client};
 use heronite_data::launchers::Launcher;
-use heronite_data::{DataPaths, Library};
+use heronite_data::models::LocalMetaFile;
+use heronite_data::{json_store, DataPaths, Library};
 use heronite_i18n::{tr, trn};
 use heronite_metadata::remove::{remove_collection_game, RemoveOutcome, ShortcutDirs};
 
@@ -85,6 +86,15 @@ pub fn batch_message(titles: &[&str], skipped: usize) -> String {
 /// look the game up in the library the removal empties; failures only log),
 /// then its Collection data. Blocking.
 pub fn remove_from_collection(paths: &DataPaths, runner: &str, app_name: &str) -> anyhow::Result<RemoveOutcome> {
+    let meta: LocalMetaFile = json_store::read(&paths.local_meta())?;
+    if meta
+        .games
+        .get(app_name)
+        .is_some_and(|game| game.source == heronite_data::apps::SOURCE && game.launch_kind == heronite_data::apps::LAUNCH_KIND)
+    {
+        heronite_apps::collection::set_hidden(paths, app_name, true)?;
+        return Ok(RemoveOutcome::default());
+    }
     let outcome = crate::system::shortcuts::remove_shortcuts(paths, runner, app_name);
     log::info!("shortcuts of {app_name}: {outcome:?}");
     if crate::system::shortcuts::is_added_to_steam(paths, runner, app_name) {
@@ -101,6 +111,8 @@ pub enum Origin {
     Client(Client),
     /// The Xbox app (Microsoft Store and PC Game Pass games).
     Xbox,
+    /// Imported Windows applications from this PC.
+    Apps,
 }
 
 /// The launcher (Heroic, Lutris, Bottles, Faugus, Playnite) or the store client a game
@@ -111,6 +123,9 @@ pub fn launcher_of(lib: &Library, app_name: &str) -> Option<Origin> {
     let meta = game.meta.as_ref()?;
     if meta.launch_kind == heronite_data::xbox::LAUNCH_KIND {
         return Some(Origin::Xbox);
+    }
+    if meta.launch_kind == heronite_data::apps::LAUNCH_KIND {
+        return Some(Origin::Apps);
     }
     match Client::from_id(&meta.source).filter(|_| meta.launch_kind == clients::LAUNCH_KIND) {
         Some(client) => Some(Origin::Client(client)),
@@ -133,6 +148,10 @@ pub fn note_removed(origin: Option<Origin>, app_name: &str, cx: &mut App) {
         Some(Origin::Xbox) => {
             let svc = crate::services::xbox_library(cx);
             svc.update(cx, |s, cx| s.note_removed(app_name, cx));
+        }
+        Some(Origin::Apps) => {
+            let svc = crate::services::apps_library(cx);
+            svc.update(cx, |s, cx| s.note_hidden(app_name, cx));
         }
         None => {}
     }

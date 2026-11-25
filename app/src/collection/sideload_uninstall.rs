@@ -46,6 +46,9 @@ impl Job {
 /// game of a store client or of the Xbox app, whose uninstall is theirs
 /// ([`CollectionView::open_sideload_uninstall`] sends the user there).
 pub(super) fn can_uninstall_local(game: &CollectionGame) -> bool {
+    if game.is_app() {
+        return false;
+    }
     if game.client().is_some() || game.is_xbox() {
         return game.installed;
     }

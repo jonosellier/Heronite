@@ -228,11 +228,13 @@ pub(super) fn run_process(shared: &Shared, log: &Arc<GameLog>, req: &LaunchReque
     let spawned = Instant::now();
     // The session clock starts here, not at the launch request.
     let started_at = control.set_playing();
-    let _ = record::mark_started(&shared.paths, &req.app_name, started_at);
-    // Written down so the next run of the app can pick the game up if this
-    // one quits or crashes first.
-    if let Some(tracked) = super::adopt::process_entry(shared, handle.pid(), plan, gpu_exe.clone()) {
-        super::adopt::remember(shared, control, req, tracked);
+    if control.record.load(Ordering::SeqCst) {
+        let _ = record::mark_started(&shared.paths, &req.app_name, started_at);
+        // Written down so the next run of the app can pick the game up if this
+        // one quits or crashes first.
+        if let Some(tracked) = super::adopt::process_entry(shared, handle.pid(), plan, gpu_exe.clone()) {
+            super::adopt::remember(shared, control, req, tracked);
+        }
     }
     shared.send(LaunchEvent::Running { app_name: req.app_name.clone(), pid: handle.pid() });
     let mut awake = plan.keep_awake.as_ref().and_then(|cmd| match shared.spawner.spawn(cmd, None) {
@@ -315,7 +317,11 @@ pub(super) fn run_process(shared: &Shared, log: &Arc<GameLog>, req: &LaunchReque
     let handed_on = exit.is_some_and(|e| e.code == Some(0));
     // Waiting for a game that never showed up is not play time.
     let mut unseen = Duration::ZERO;
-    if let Some(handoff) = plan.handoff.as_ref().filter(|_| handed_on && !aborted && !control.kill.load(Ordering::SeqCst)) {
+    let has_handoff_target =
+        |h: &crate::plan::Handoff| h.prefix.is_some() || h.folder.is_some() || h.package.is_some() || h.client.is_some();
+    if let Some(handoff) =
+        plan.handoff.as_ref().filter(|h| has_handoff_target(h) && handed_on && !aborted && !control.kill.load(Ordering::SeqCst))
+    {
         if spawned.elapsed() < shared.cfg.handoff.soon {
             match follow_handoff(shared, control, handoff, log) {
                 Followed::Aborted => aborted = true,

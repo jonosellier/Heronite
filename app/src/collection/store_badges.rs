@@ -30,16 +30,18 @@ pub fn store_icon(store: &str) -> Option<Icon> {
         "EA app" => Icon::BrandEa,
         "Ubisoft Connect" => Icon::BrandUbisoft,
         "Rockstar Games" => Icon::BrandRockstar,
+        heronite_data::apps::NAME => Icon::Computer,
         _ => return None,
     })
 }
 
 /// The icons of `games` (one game's copies, the card's own first): each
 /// ROM's emulator, each other copy's stores; each icon once, in order.
-pub fn game_icons(games: &[impl std::ops::Deref<Target = CollectionGame>]) -> Vec<Icon> {
+pub fn game_icons(games: &[impl std::ops::Deref<Target = CollectionGame>], show_app_badges: bool) -> Vec<Icon> {
     let store = FacetKind::Store.index();
     once_each(games.iter().flat_map(|g| match emulator_icon(g) {
         Some(i) => vec![i],
+        None if g.is_app() && !show_app_badges => Vec::new(),
         None => g.facets[store].iter().filter_map(|f| store_icon(&f.value)).collect(),
     }))
 }
@@ -124,6 +126,7 @@ mod tests {
         assert_eq!(store_icon("Ubisoft Connect"), Some(Icon::BrandUbisoft));
         assert_eq!(store_icon("Lutris"), None);
         assert_eq!(store_icon("Xbox"), None);
+        assert_eq!(store_icon("Apps"), Some(Icon::Computer));
     }
 
     #[test]

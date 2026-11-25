@@ -84,6 +84,10 @@ impl DataPaths {
     pub fn xbox(&self) -> PathBuf {
         self.j("local_library/xbox.json")
     }
+    /// The local PC's imported applications and Apps settings.
+    pub fn apps(&self) -> PathBuf {
+        self.j("local_library/apps.json")
+    }
     pub fn sessions(&self) -> PathBuf {
         self.j("local_library/sessions.json")
     }

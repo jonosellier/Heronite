@@ -147,6 +147,7 @@ fn source_label(meta: Option<&LocalGameMeta>, runner: &str) -> &'static str {
             "gog" => return "GOG",
             "amazon" => return "Amazon",
             "xbox" => return "Xbox",
+            "apps" => return crate::apps::NAME,
             "emulator" => return tr!("Emulator"),
             "heroic" => return "Heroic",
             "lutris" => return "Lutris",
@@ -313,6 +314,11 @@ impl CollectionGame {
     /// package, which Windows starts and the Xbox app uninstalls).
     pub fn is_xbox(&self) -> bool {
         self.launch_kind.as_deref() == Some(crate::xbox::LAUNCH_KIND)
+    }
+
+    /// An imported Windows application from this PC, not a game.
+    pub fn is_app(&self) -> bool {
+        self.launch_kind.as_deref() == Some(crate::apps::LAUNCH_KIND)
     }
 
     /// The Steam app id of the game's installed Steam copy, if any (a Steam
@@ -629,7 +635,7 @@ fn steam_joins(
                 title: &titles[i],
                 steam_ids,
                 steam_entry: steam_entry_id(g, meta),
-                joinable: !browser && meta.is_none_or(|m| m.launch_kind != "emulator"),
+                joinable: !browser && meta.is_none_or(|m| m.launch_kind != "emulator" && m.launch_kind != crate::apps::LAUNCH_KIND),
             }
         })
         .collect();

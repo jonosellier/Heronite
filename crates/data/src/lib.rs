@@ -16,6 +16,7 @@ pub mod added;
 pub mod age_rating;
 pub mod anticheat;
 pub mod appearance;
+pub mod apps;
 pub mod art;
 pub mod carry_over;
 pub mod categories;

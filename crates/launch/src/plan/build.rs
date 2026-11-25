@@ -29,6 +29,9 @@ pub fn build_plan_with_settings(
     settings: &GameSettings,
     opts: &LaunchOptions,
 ) -> LaunchPlan {
+    if let Some(m) = meta.filter(|m| game.runner == "sideload" && m.launch_kind == heronite_data::apps::LAUNCH_KIND) {
+        return crate::apps::build(probe, m);
+    }
     // A store client starts these games, with the client's settings (its
     // sandbox and Wine), not the game's. Their umu id stays `umu-0`.
     if let Some(m) = meta.filter(|m| game.runner == "sideload" && m.launch_kind == heronite_data::clients::LAUNCH_KIND) {

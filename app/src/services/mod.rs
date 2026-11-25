@@ -2,6 +2,7 @@
 //! GPUI entities kept in a global, created on first use.
 
 pub mod achievements;
+pub mod apps_library;
 pub mod clients;
 pub mod compression;
 pub mod downloads;
@@ -95,6 +96,22 @@ pub fn xbox_library(cx: &mut App) -> Entity<xbox_library::XboxLibrary> {
     }
     let entity = cx.new(|cx| xbox_library::XboxLibrary::new(DataPaths::detect(), cx));
     cx.set_global(XboxLibraryGlobal(entity.clone()));
+    entity
+}
+
+struct AppsLibraryGlobal(Entity<apps_library::AppsLibrary>);
+impl Global for AppsLibraryGlobal {}
+
+pub fn apps_library_started(cx: &App) -> Option<Entity<apps_library::AppsLibrary>> {
+    cx.try_global::<AppsLibraryGlobal>().map(|global| global.0.clone())
+}
+
+pub fn apps_library(cx: &mut App) -> Entity<apps_library::AppsLibrary> {
+    if let Some(global) = cx.try_global::<AppsLibraryGlobal>() {
+        return global.0.clone();
+    }
+    let entity = cx.new(|cx| apps_library::AppsLibrary::new(DataPaths::detect(), cx));
+    cx.set_global(AppsLibraryGlobal(entity.clone()));
     entity
 }
 

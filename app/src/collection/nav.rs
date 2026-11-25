@@ -27,6 +27,7 @@ pub struct Pages {
     amazon: Option<AnyView>,
     steam: Option<AnyView>,
     xbox: Option<AnyView>,
+    apps: Option<AnyView>,
     battlenet: Option<AnyView>,
     ea: Option<AnyView>,
     ubisoft: Option<AnyView>,
@@ -346,6 +347,7 @@ impl CollectionView {
                     | Page::Amazon
                     | Page::Steam
                     | Page::Xbox
+                    | Page::Apps
                     | Page::BattleNet
                     | Page::Ea
                     | Page::Ubisoft
@@ -542,7 +544,7 @@ impl CollectionView {
             Page::Ea => set_client_shown::<pages::clients::EaKind>(&p.ea, false, cx),
             Page::Ubisoft => set_client_shown::<pages::clients::UbisoftKind>(&p.ubisoft, false, cx),
             Page::Rockstar => set_client_shown::<pages::clients::RockstarKind>(&p.rockstar, false, cx),
-            Page::Collection | Page::Epic | Page::Gog | Page::Amazon | Page::Steam | Page::Xbox => {}
+            Page::Collection | Page::Epic | Page::Gog | Page::Amazon | Page::Steam | Page::Xbox | Page::Apps => {}
         }
     }
 
@@ -590,6 +592,11 @@ impl CollectionView {
                 v.update(cx, |p, cx| p.refresh(cx));
             }
         }
+        if page == Page::Apps {
+            if let Some(v) = self.pages.apps.clone().and_then(|v| v.downcast::<pages::apps::AppsPage>().ok()) {
+                v.update(cx, |p, cx| p.refresh(cx));
+            }
+        }
         if page == Page::Statistics {
             // Hand the page the library after the slot below is filled.
             cx.defer_in(window, |this, _, cx| this.offer_stats_data(cx));
@@ -603,6 +610,7 @@ impl CollectionView {
             Page::Amazon => self.pages.amazon.is_none(),
             Page::Steam => self.pages.steam.is_none(),
             Page::Xbox => self.pages.xbox.is_none(),
+            Page::Apps => self.pages.apps.is_none(),
             Page::BattleNet => self.pages.battlenet.is_none(),
             Page::Ea => self.pages.ea.is_none(),
             Page::Ubisoft => self.pages.ubisoft.is_none(),
@@ -657,6 +665,12 @@ impl CollectionView {
                 self.pages.subs.push(cx.subscribe_in(&v, window, Self::on_page_event));
                 self.pages.hooks.insert(Page::Xbox, crate::console::PadHook::new(&v));
                 self.pages.xbox = Some(v.into());
+            }
+            Page::Apps => {
+                let v = cx.new(|cx| pages::apps::AppsPage::new(ctx, window, cx));
+                self.pages.subs.push(cx.subscribe_in(&v, window, Self::on_page_event));
+                self.pages.hooks.insert(Page::Apps, crate::console::PadHook::new(&v));
+                self.pages.apps = Some(v.into());
             }
             Page::BattleNet => {
                 let v = cx.new(|cx| pages::clients::BattleNetPage::new(ctx, window, cx));
@@ -722,6 +736,9 @@ impl CollectionView {
         if Page::Xbox.available() {
             list::<pages::xbox::XboxPage>(Page::Xbox, &p.xbox, &ctx, cx, &mut out);
         }
+        if Page::Apps.available() {
+            list::<pages::apps::AppsPage>(Page::Apps, &p.apps, &ctx, cx, &mut out);
+        }
         list::<pages::clients::BattleNetPage>(Page::BattleNet, &p.battlenet, &ctx, cx, &mut out);
         list::<pages::clients::EaPage>(Page::Ea, &p.ea, &ctx, cx, &mut out);
         list::<pages::clients::UbisoftPage>(Page::Ubisoft, &p.ubisoft, &ctx, cx, &mut out);
@@ -755,6 +772,7 @@ impl CollectionView {
             Page::Amazon => run::<pages::store::AmazonPage>(&p.amazon, id, window, cx),
             Page::Steam => run::<pages::steam::SteamPage>(&p.steam, id, window, cx),
             Page::Xbox => run::<pages::xbox::XboxPage>(&p.xbox, id, window, cx),
+            Page::Apps => run::<pages::apps::AppsPage>(&p.apps, id, window, cx),
             Page::BattleNet => run::<pages::clients::BattleNetPage>(&p.battlenet, id, window, cx),
             Page::Ea => run::<pages::clients::EaPage>(&p.ea, id, window, cx),
             Page::Ubisoft => run::<pages::clients::UbisoftPage>(&p.ubisoft, id, window, cx),
@@ -782,6 +800,7 @@ impl CollectionView {
             Page::Amazon => modal::<pages::store::AmazonPage>(&p.amazon, cx),
             Page::Steam => modal::<pages::steam::SteamPage>(&p.steam, cx),
             Page::Xbox => modal::<pages::xbox::XboxPage>(&p.xbox, cx),
+            Page::Apps => modal::<pages::apps::AppsPage>(&p.apps, cx),
             Page::BattleNet => modal::<pages::clients::BattleNetPage>(&p.battlenet, cx),
             Page::Ea => modal::<pages::clients::EaPage>(&p.ea, cx),
             Page::Ubisoft => modal::<pages::clients::UbisoftPage>(&p.ubisoft, cx),
@@ -839,6 +858,7 @@ impl CollectionView {
             Page::Amazon => close::<pages::store::AmazonPage>(&p.amazon, window, cx),
             Page::Steam => close::<pages::steam::SteamPage>(&p.steam, window, cx),
             Page::Xbox => close::<pages::xbox::XboxPage>(&p.xbox, window, cx),
+            Page::Apps => close::<pages::apps::AppsPage>(&p.apps, window, cx),
             Page::BattleNet => close::<pages::clients::BattleNetPage>(&p.battlenet, window, cx),
             Page::Ea => close::<pages::clients::EaPage>(&p.ea, window, cx),
             Page::Ubisoft => close::<pages::clients::UbisoftPage>(&p.ubisoft, window, cx),
@@ -970,6 +990,7 @@ impl CollectionView {
             Page::Amazon => self.pages.amazon.clone(),
             Page::Steam => self.pages.steam.clone(),
             Page::Xbox => self.pages.xbox.clone(),
+            Page::Apps => self.pages.apps.clone(),
             Page::BattleNet => self.pages.battlenet.clone(),
             Page::Ea => self.pages.ea.clone(),
             Page::Ubisoft => self.pages.ubisoft.clone(),
@@ -992,6 +1013,7 @@ impl CollectionView {
             Page::Amazon => self.pages.amazon.clone(),
             Page::Steam => self.pages.steam.clone(),
             Page::Xbox => self.pages.xbox.clone(),
+            Page::Apps => self.pages.apps.clone(),
             Page::BattleNet => self.pages.battlenet.clone(),
             Page::Ea => self.pages.ea.clone(),
             Page::Ubisoft => self.pages.ubisoft.clone(),

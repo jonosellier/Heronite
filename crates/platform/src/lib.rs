@@ -65,6 +65,8 @@ pub mod gamepad;
 #[cfg(windows)]
 pub mod gpu_adapters;
 #[cfg(windows)]
+pub mod known_folders;
+#[cfg(windows)]
 pub mod overlay_window;
 #[cfg(windows)]
 pub mod power;

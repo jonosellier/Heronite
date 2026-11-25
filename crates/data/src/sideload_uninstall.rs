@@ -24,6 +24,7 @@ use crate::game_config;
 use crate::json_store;
 use crate::launchers::{self, Managed};
 use crate::library::Library;
+use crate::models::LocalMetaFile;
 use crate::paths::DataPaths;
 use crate::sideload::check_prefix_removable;
 
@@ -70,6 +71,13 @@ pub struct UninstallInput<'a> {
 }
 
 pub fn plan(paths: &DataPaths, input: &UninstallInput) -> UninstallPlan {
+    if imported_app(paths, input.app_name).unwrap_or(false) {
+        let blocked = tr!("Apps imported from this PC can only be hidden, not uninstalled here.").to_string();
+        return UninstallPlan {
+            files: input.folder.map(|path| Target { path: path.to_path_buf(), blocked: Some(blocked.clone()) }),
+            prefix: None,
+        };
+    }
     let home = Path::new(input.home);
     let global = game_config::load_global(paths, input.home);
     let text = |k: &str| global.get(k).and_then(Value::as_str).unwrap_or("").to_string();
@@ -107,12 +115,16 @@ pub fn plan(paths: &DataPaths, input: &UninstallInput) -> UninstallPlan {
 /// target is checked again first; when one asked for is refused, nothing is
 /// deleted and the reason is the error.
 pub fn uninstall(paths: &DataPaths, input: &UninstallInput, delete_files: bool, delete_prefix: bool) -> Result<UninstallOutcome> {
+    if imported_app(paths, input.app_name)? {
+        anyhow::bail!(tr!("Apps imported from this PC can only be hidden, not uninstalled here."));
+    }
     let plan = plan(paths, input);
     let files = if delete_files {
         let t = plan.files.ok_or_else(|| anyhow::anyhow!(tr!("The install folder was not found on this computer")))?;
         if let Some(why) = t.blocked {
             anyhow::bail!(why);
         }
+
         Some(t.path)
     } else {
         None
@@ -146,6 +158,11 @@ pub fn uninstall(paths: &DataPaths, input: &UninstallInput, delete_files: bool, 
     }
     mark_uninstalled(paths, input.app_name)?;
     Ok(UninstallOutcome { files_removed: files, prefix_removed: prefix })
+}
+
+fn imported_app(paths: &DataPaths, app_name: &str) -> Result<bool> {
+    let meta: LocalMetaFile = json_store::read(&paths.local_meta())?;
+    Ok(meta.games.get(app_name).is_some_and(|game| game.source == crate::apps::SOURCE && game.launch_kind == crate::apps::LAUNCH_KIND))
 }
 
 /// The folder to offer for deletion from the game's executable: its folder,
@@ -389,6 +406,30 @@ mod tests {
         let doc = json_store::read_value(&e.paths.sideload_library()).unwrap();
         assert_eq!(doc["games"][0]["is_installed"], false);
         assert_eq!(doc["games"][1]["is_installed"], true);
+    }
+
+    #[test]
+    fn imported_apps_are_blocked_from_file_uninstall() {
+        let e = env();
+        let folder = e.mkdir("Games/Imported");
+        let mut meta = crate::models::LocalMetaFile::default();
+        meta.games.insert(
+            "a".into(),
+            crate::models::LocalGameMeta {
+                app_name: "a".into(),
+                source: crate::apps::SOURCE.into(),
+                launch_kind: crate::apps::LAUNCH_KIND.into(),
+                title: "Imported app".into(),
+                ..Default::default()
+            },
+        );
+        json_store::write(&e.paths.local_meta(), &meta).unwrap();
+        let input = UninstallInput { app_name: "a", home: e.home(), folder: Some(&folder), windows: true, others: &[] };
+        let plan = plan(&e.paths, &input);
+        assert!(plan.files.as_ref().is_some_and(|target| !target.removable()));
+        assert!(plan.prefix.is_none());
+        assert!(uninstall(&e.paths, &input, true, false).is_err());
+        assert!(folder.exists(), "an imported app's installation must never be deleted");
     }
 
     #[test]

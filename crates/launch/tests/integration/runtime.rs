@@ -294,6 +294,22 @@ fn a_store_game_is_followed_by_its_package() {
     assert!(elapsed < Duration::from_secs(2), "the wait is not play time: {elapsed:?}");
 }
 
+#[test]
+fn fire_and_forget_handoff_without_targets_exits_without_waiting_or_warning() {
+    let r = rig();
+    let mut plan = process_plan("explorer.exe", &[r"C:\Start Menu\App.lnk"]);
+    plan.handoff = Some(Handoff { exit_ignored: true, ..Default::default() });
+    plan.record_session = Some(false);
+    r.launcher.launch(request("app_1", LaunchPlan::Native(plan))).unwrap();
+    assert_eq!(next(&r.rx), LaunchEvent::Launching { app_name: "app_1".into() });
+    assert!(matches!(next(&r.rx), LaunchEvent::Running { .. }));
+    r.spawner.finish(0, 1);
+    let ev = next(&r.rx);
+    let LaunchEvent::Exited { exit, record, .. } = ev else { panic!("expected Exited without warning, got {ev:?}") };
+    assert_eq!(exit.unwrap().code, Some(0));
+    assert!(record.is_none());
+}
+
 /// Stopped before the game showed up: nothing was lost, no warning, and the
 /// wait is not play time.
 #[test]

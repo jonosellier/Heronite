@@ -140,6 +140,7 @@ impl CollectionView {
     }
 
     fn apply_loaded(&mut self, l: Loaded, cx: &mut Context<Self>) {
+        self.apps_prefs = heronite_data::apps::AppPrefs::load(&self.data_paths);
         let first = self.lib.is_none();
         let s = &l.lib.settings;
         let bg = &s.background;
