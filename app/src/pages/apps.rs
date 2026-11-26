@@ -17,12 +17,14 @@ use crate::icons::Icon;
 use crate::services::apps_library::{AppSource, AppsLibrary, AppsLibraryEvent};
 use crate::theme;
 use crate::ui::controls::{button_sm, caption, card, icon_button_sm, toggle_row, with_sub_rows, ButtonKind};
+use crate::ui::fields::{new_input, input_box, on_commit};
 use crate::ui::icon;
 
 pub struct AppsPage {
     svc: Entity<AppsLibrary>,
     console_list: crate::console::list::ListNav,
     _subs: Vec<Subscription>,
+    search_query: String,
 }
 
 impl EventEmitter<PageEvent> for AppsPage {}
@@ -50,7 +52,7 @@ impl AppsPage {
                 }
             }),
         ];
-        Self { svc, console_list: Default::default(), _subs: subs }
+        Self { svc, console_list: Default::default(), _subs: subs, search_query: String::new() }
     }
 
     /// Refreshes the list when the page is shown again.
@@ -119,7 +121,7 @@ impl AppsPage {
         }
     }
 
-    fn render_settings(&self, cx: &mut Context<Self>) -> Div {
+    fn render_settings(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let (enabled, show_main, show_badges, start_menu, installed_programs, packaged) = {
             let prefs = &self.svc.read(cx).prefs;
             (
@@ -193,6 +195,28 @@ impl AppsPage {
             ]);
             out = out.child(caption(tr!("Sources"))).child(sources);
         }
+        
+        // Add search filter
+        let search_input = new_input(window, cx, &self.search_query, tr!("Filter apps..."));
+        on_commit(&search_input, window, cx, |this, query: String, _, cx| {
+            this.search_query = query;
+            cx.notify();
+        });
+        
+        out = out.child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .px(px(12.))
+                .py(px(8.))
+                .child(
+                    div()
+                        .flex_1()
+                        .child(input_box(&search_input, false)),
+                ),
+        );
+        
         out
     }
 
@@ -219,6 +243,7 @@ impl AppsPage {
             .child(div().text_size(px(12.)).text_color(theme::text_dim()).truncate().child(Self::candidate_detail(candidate)));
         let shown = candidate.clone();
         let hide_id = candidate.id.clone();
+        let is_hidden = self.svc.read(cx).prefs.hidden_ids.contains(&candidate.id);
         let actions = div()
             .flex()
             .items_center()
@@ -228,12 +253,15 @@ impl AppsPage {
                     .on_click(cx.listener(move |this, _, _, cx| this.show_app(&shown, cx))),
             )
             .child(
-                button_sm(SharedString::from(format!("apps-hide-{}", candidate.id)), ButtonKind::Ghost, tr!("Hide")).on_click(
-                    cx.listener(move |this, _, _, cx| {
-                        let id = hide_id.clone();
-                        this.svc.update(cx, |s, cx| s.set_hidden(id, true, cx));
-                    }),
-                ),
+                button_sm(
+                    SharedString::from(format!("apps-hide-{}", candidate.id)),
+                    if is_hidden { ButtonKind::Glass } else { ButtonKind::Ghost },
+                    if is_hidden { tr!("Show") } else { tr!("Hide") },
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    let id = hide_id.clone();
+                    this.svc.update(cx, |s, cx| s.set_hidden(id, true, cx));
+                })),
             );
         list_item(Some(icon(Icon::Computer, px(22.), theme::text_muted()).into_any_element()), content, actions).into_any_element()
     }
@@ -249,12 +277,30 @@ impl AppsPage {
                 s.hidden_candidates.clone(),
             )
         };
+        
+        // Filter candidates by search query
+        let filtered_candidates: Vec<&AppCandidate> = if self.search_query.is_empty() {
+            candidates.iter().collect()
+        } else {
+            let query = self.search_query.to_lowercase();
+            candidates.iter().filter(|c| {
+                c.name.to_lowercase().contains(&query)
+                    || c.launch.target.to_lowercase().contains(&query)
+                    || c.publisher.as_deref().unwrap_or("").to_lowercase().contains(&query)
+                    || c.install_dir.as_deref().unwrap_or("").to_lowercase().contains(&query)
+            }).collect()
+        };
+
         let rows: Vec<AnyElement> = if !enabled {
             vec![empty_row(tr!("Turn on \"Find Windows apps on this PC\" above to scan for non-game apps.")).into_any_element()]
-        } else if candidates.is_empty() {
-            vec![empty_row(tr!("No apps found yet. Click Scan now or check your enabled sources.")).into_any_element()]
+        } else if filtered_candidates.is_empty() {
+            if self.search_query.is_empty() {
+                vec![empty_row(tr!("No apps found yet. Click Scan now or check your enabled sources.")).into_any_element()]
+            } else {
+                vec![empty_row(tr!("No apps match \"{query}\"", query = self.search_query)).into_any_element()]
+            }
         } else {
-            candidates.iter().map(|c| self.render_app_row(c, cx)).collect()
+            filtered_candidates.iter().map(|c| self.render_app_row(c, cx)).collect()
         };
         let mut out = div().child(caption(tr!("Imported apps"))).child(card(rows));
 
@@ -305,7 +351,7 @@ impl AppsPage {
                             d.child(div().text_size(px(12.)).text_color(theme::text_dim()).truncate().child(detail))
                         });
                     let restore =
-                        button_sm(SharedString::from(format!("apps-restore-{id}")), ButtonKind::Glass, tr!("Restore")).on_click(cx.listener(
+                        button_sm(SharedString::from(format!("apps-restore-{id}")), ButtonKind::Glass, tr!("Show")).on_click(cx.listener(
                             move |this, _, _, cx| {
                                 let id = restore_id.clone();
                                 this.svc.update(cx, |svc, cx| svc.set_hidden(id, false, cx));
@@ -373,7 +419,7 @@ impl AppsPage {
 }
 
 impl Render for AppsPage {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if crate::console::active() {
             return self.render_console(cx);
         }
@@ -392,7 +438,7 @@ impl Render for AppsPage {
             .flex_col()
             .gap(px(12.))
             .child(strip)
-            .child(self.render_settings(cx))
+            .child(self.render_settings(window, cx))
             .child(self.render_apps_list(cx));
         div()
             .size_full()

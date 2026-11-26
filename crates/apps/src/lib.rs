@@ -1,5 +1,6 @@
 //! Discovering Windows applications from shortcuts and packaged-app records.
 
+pub mod blacklist;
 pub mod collection;
 pub mod scan;
 
@@ -72,7 +73,13 @@ pub fn scan(roots: &ScanRoots, options: ScanOptions) -> Vec<AppCandidate> {
     if options.installed_program_metadata {
         scan::attach_uninstall_metadata(&mut candidates, &roots.installed_programs);
     }
-    heronite_data::apps::dedupe(candidates)
+    let candidates = heronite_data::apps::dedupe(candidates);
+    // Apply blacklist filtering to all candidates after deduplication
+    if let Ok(blacklist) = crate::blacklist::Blacklist::load(&crate::blacklist::blacklist_path()) {
+        crate::blacklist::filter_candidates(candidates, &blacklist)
+    } else {
+        candidates
+    }
 }
 
 fn packaged_candidate(app: &PackagedApplication) -> Option<AppCandidate> {

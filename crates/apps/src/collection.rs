@@ -18,8 +18,21 @@ pub struct SyncReport {
 }
 
 pub fn sync(paths: &DataPaths, candidates: &[AppCandidate], games: &[apps::GameRef]) -> Result<SyncReport> {
-    let prefs = AppPrefs::load(paths);
+    let mut prefs = AppPrefs::load(paths);
     let mut report = SyncReport::default();
+    
+    // Auto-hide new apps by default: add any app not already in hidden_ids or force_includes to hidden_ids
+    if prefs.enabled {
+        for candidate in candidates {
+            let is_app = matches!(apps::classify(candidate, games, &prefs.force_includes, &prefs.show_title_matches), Classification::App);
+            if is_app && !prefs.hidden_ids.contains(&candidate.id) && !prefs.force_includes.contains(&candidate.id) {
+                prefs.hidden_ids.insert(candidate.id.clone());
+            }
+        }
+        // Save prefs if any new apps were auto-hidden
+        prefs.save(paths).ok();
+    }
+    
     let importable: Vec<&AppCandidate> = if prefs.enabled {
         candidates
             .iter()

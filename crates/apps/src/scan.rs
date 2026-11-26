@@ -2,12 +2,24 @@ use std::path::{Path, PathBuf};
 
 use heronite_data::apps::{AppCandidate, AppOrigin};
 
+use crate::blacklist::Blacklist;
 use crate::InstalledProgram;
 
 #[cfg(windows)]
 pub mod windows;
 
 const MAX_DEPTH: usize = 8;
+
+/// Load the app blacklist from the data directory.
+pub fn load_blacklist() -> Option<Blacklist> {
+    let data_dir = std::env::var("HERONITE_DATA_DIR").ok().map(PathBuf::from).or_else(|| {
+        dirs::data_dir().map(|dir| dir.join("Heronite"))
+    });
+    data_dir.and_then(|dir| {
+        let path = dir.join("app-blacklist.json");
+        Blacklist::load(&path).ok()
+    })
+}
 
 pub fn start_menu(roots: &[PathBuf]) -> Vec<AppCandidate> {
     let mut candidates = Vec::new();

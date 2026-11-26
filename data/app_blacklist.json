@@ -1,0 +1,339 @@
+{
+  "version": 2,
+  "platform": "windows",
+  "description": "Apps and Tools scanner exclusions. A candidate is dropped if any enabled blacklist rule matches and no allow rule matches. Written to be machine-independent: generic patterns first, a few widely-installed products at the end.",
+  "matching": {
+    "caseSensitive": false,
+    "pathSeparators": "Both the candidate value and the pattern have \\ converted to / before comparing.",
+    "exact": "The whole field value must equal the pattern.",
+    "fuzzy": "A pattern with * is a wildcard (* = any run of characters, matched against the whole value). A pattern without * matches if it appears anywhere in the value (substring).",
+    "order": "1) allow rules: if any matches, the candidate is kept. 2) rules in enabled groups: if any matches, the candidate is dropped. 3) otherwise kept.",
+    "fields": {
+      "title": "heroniteAppCandidate.name",
+      "aumid": "heroniteAppCandidate.launch.aumid (packaged/UWP apps)",
+      "target": "heroniteAppCandidate.launch.target (Start Menu shortcut target)",
+      "arguments": "heroniteAppCandidate.launch.arguments",
+      "shortcut": "heroniteAppCandidate.launch.shortcut (.lnk path)",
+      "installDir": "heroniteAppCandidate.installDir",
+      "publisher": "heroniteAppCandidate.publisher",
+      "exe": "heroniteAppCandidate.exe"
+    },
+    "missingField": "A rule never matches a candidate that lacks the field.",
+    "appliesTo": "Every candidate from the apps scanner, whatever its launchKind (app, executable...)."
+  },
+  "groups": {
+    "unresolved-resources": { "enabled": true, "description": "Names that are raw ms-resource strings the scanner failed to resolve" },
+    "system-components": { "enabled": true, "description": "Windows shell hosts and SystemApps packages that are not user apps" },
+    "runtimes": { "enabled": true, "description": "Redistributables, frameworks and runtimes" },
+    "xbox-plumbing": { "enabled": true, "description": "Xbox/Store background UI hosts" },
+    "non-executable": { "enabled": true, "description": "Shortcuts that open a URL, doc or config file instead of a program" },
+    "uninstallers": { "enabled": true, "description": "Uninstall shortcuts and uninstaller executables, from any vendor" },
+    "updaters-and-reporters": { "enabled": true, "description": "Updaters, crash/error reporters, activators and reset helpers that ship beside an app" },
+    "docs-and-help": { "enabled": true, "description": "Help, manual, tutorial, readme and release-notes shortcuts" },
+    "dev-tool-clutter": { "enabled": true, "description": "Visual Studio command prompts, Windows SDK docs/samples, Application Verifier" },
+    "windows-admin-tools": { "enabled": true, "description": "Built-in admin/diagnostic consoles (Task Scheduler, ODBC, Disk Cleanup...). Set to false to show them." },
+    "windows-accessibility": { "enabled": true, "description": "Built-in accessibility tools (Narrator, Magnifier, On-Screen Keyboard...). Set to false to show them." },
+    "known-product-helpers": { "enabled": true, "description": "Helper shortcuts from very common products that the generic rules cannot catch" }
+  },
+  "allow": [
+    {
+      "id": "keep-get-help",
+      "field": "aumid",
+      "match": "fuzzy",
+      "patterns": ["Microsoft.GetHelp*"],
+      "reason": "Microsoft's Get Help app would otherwise match the '* Help' title rule"
+    }
+  ],
+  "rules": [
+    {
+      "id": "unresolved-resource-names",
+      "group": "unresolved-resources",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": ["@{*", "ms-resource:*"],
+      "reason": "Display name was never resolved from the package resource file"
+    },
+
+    {
+      "id": "systemapps-install-dir",
+      "group": "system-components",
+      "field": "installDir",
+      "match": "fuzzy",
+      "patterns": ["*/Windows/SystemApps/*"],
+      "reason": "Lives in the OS SystemApps folder"
+    },
+    {
+      "id": "microsoftwindows-packages",
+      "group": "system-components",
+      "field": "aumid",
+      "match": "fuzzy",
+      "patterns": ["MicrosoftWindows.*"],
+      "reason": "Windows component packages (Client.Core, Client.CBS, Filons, Livtop, Voiess, Speion, InpApp...)"
+    },
+    {
+      "id": "windows-shell-hosts",
+      "group": "system-components",
+      "field": "aumid",
+      "match": "fuzzy",
+      "patterns": [
+        "Microsoft.Windows.CloudExperienceHost*",
+        "Microsoft.Windows.ShellExperienceHost*",
+        "Microsoft.Windows.StartMenuExperienceHost*",
+        "Microsoft.Windows.Search_*",
+        "Microsoft.Windows.ContentDeliveryManager*",
+        "Microsoft.Windows.OOBE*",
+        "Microsoft.Windows.PeopleExperienceHost*",
+        "Microsoft.Windows.PinningConfirmationDialog*",
+        "Microsoft.Windows.SecureAssessmentBrowser*",
+        "Microsoft.Windows.XGpuEjectDialog*",
+        "Microsoft.Windows.CapturePicker*",
+        "Microsoft.Windows.AssignedAccessLockApp*",
+        "Microsoft.Windows.Apprep.ChxApp*",
+        "Microsoft.Windows.ParentalControls*",
+        "Microsoft.Windows.NarratorQuickStart*",
+        "Microsoft.LockApp*",
+        "Microsoft.AAD.BrokerPlugin*",
+        "Microsoft.AccountsControl*",
+        "Microsoft.CredDialogHost*",
+        "Microsoft.ECApp*",
+        "Microsoft.BioEnrollment*",
+        "Microsoft.Win32WebViewHost*",
+        "Windows.PrintDialog*",
+        "windows.immersivecontrolpanel*"
+      ],
+      "reason": "Known internal Windows shell/UI host packages"
+    },
+
+    {
+      "id": "runtime-titles",
+      "group": "runtimes",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": [
+        "Microsoft Visual C++*",
+        "*Redistributable*",
+        "Microsoft .NET*",
+        "*Desktop Runtime*",
+        "Microsoft Edge WebView2*",
+        "Windows App Runtime*"
+      ],
+      "reason": "Runtime/redistributable, not an app"
+    },
+    {
+      "id": "runtime-packages",
+      "group": "runtimes",
+      "field": "aumid",
+      "match": "fuzzy",
+      "patterns": [
+        "Microsoft.VCLibs*",
+        "Microsoft.NET.Native*",
+        "Microsoft.UI.Xaml*",
+        "Microsoft.WindowsAppRuntime*",
+        "MicrosoftCorporationII.WinAppRuntime*"
+      ],
+      "reason": "Framework packages"
+    },
+
+    {
+      "id": "xbox-store-hosts",
+      "group": "xbox-plumbing",
+      "field": "aumid",
+      "match": "fuzzy",
+      "patterns": [
+        "Microsoft.XboxIdentityProvider*",
+        "Microsoft.Xbox.TCUI*",
+        "Microsoft.XboxGameCallableUI*",
+        "Microsoft.StorePurchaseApp*"
+      ],
+      "reason": "Background sign-in / purchase UI hosts, never launched directly"
+    },
+
+    {
+      "id": "non-app-shortcut-targets",
+      "group": "non-executable",
+      "field": "target",
+      "match": "fuzzy",
+      "patterns": ["*.url", "*.ini", "*.txt", "*.log", "*.chm", "*.hlp", "*.pdf", "*.rtf", "*.md", "*.htm", "*.html"],
+      "reason": "Shortcut opens a website, doc or config file, not a program"
+    },
+
+    {
+      "id": "uninstall-titles",
+      "group": "uninstallers",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": ["uninstall"],
+      "reason": "Any title containing 'uninstall' (Uninstall X, X Uninstaller, X Uninstall (x64)...)"
+    },
+    {
+      "id": "uninstall-targets",
+      "group": "uninstallers",
+      "field": "target",
+      "match": "fuzzy",
+      "patterns": ["*/unins*.exe", "*/*uninstall*.exe", "*/msiexec.exe"],
+      "reason": "Inno Setup (unins000.exe), uninst*.exe, *uninstall*.exe and MSI uninstall shortcuts"
+    },
+
+    {
+      "id": "updater-and-reporter-titles",
+      "group": "updaters-and-reporters",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": [
+        "*Updater",
+        "Check for Update*",
+        "*Update Checker",
+        "*Error Reporter",
+        "*Crash Reporter",
+        "*Crash Handler",
+        "*Bug Report*",
+        "Activate *",
+        "*Product Activation*",
+        "Reset settings",
+        "Reset to default*"
+      ],
+      "reason": "Helper shortcuts that ship beside an app"
+    },
+    {
+      "id": "updater-and-reporter-targets",
+      "group": "updaters-and-reporters",
+      "field": "target",
+      "match": "fuzzy",
+      "patterns": [
+        "*/*updater.exe",
+        "*/*errorreporter.exe",
+        "*/*error_reporter.exe",
+        "*/*crashreport*.exe",
+        "*/*crashpad*.exe",
+        "*/*bugreport*.exe",
+        "*/activation*.exe",
+        "*/*regreset.exe",
+        "*/cscript.exe",
+        "*/wscript.exe"
+      ],
+      "reason": "Helper executables that are not meant to be launched by hand"
+    },
+
+    {
+      "id": "help-and-doc-titles",
+      "group": "docs-and-help",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": [
+        "* Help",
+        "* Documentation",
+        "Documentation*",
+        "*User Guide",
+        "*Manual",
+        "*Tutorial*",
+        "Readme*",
+        "Read Me",
+        "Release Notes*",
+        "*Release Notes",
+        "What's New*"
+      ],
+      "reason": "Documentation shortcuts, not apps"
+    },
+
+    {
+      "id": "vs-command-prompts",
+      "group": "dev-tool-clutter",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": [
+        "Developer Command Prompt*",
+        "Developer PowerShell*",
+        "*Tools Command Prompt*",
+        "Application Verifier*"
+      ],
+      "reason": "Visual Studio shell shortcuts and Application Verifier"
+    },
+    {
+      "id": "windows-sdk-shortcuts",
+      "group": "dev-tool-clutter",
+      "field": "installDir",
+      "match": "fuzzy",
+      "patterns": ["*/Windows Kits/*/Shortcuts*"],
+      "reason": "Windows SDK docs, samples and tool-doc links"
+    },
+    {
+      "id": "windows-sdk-titles",
+      "group": "dev-tool-clutter",
+      "field": "title",
+      "match": "exact",
+      "patterns": ["Windows Software Development Kit", "Debuggable Package Manager"],
+      "reason": "Windows SDK folder and package-manager helper shortcuts"
+    },
+
+    {
+      "id": "admin-tools-folder",
+      "group": "windows-admin-tools",
+      "field": "shortcut",
+      "match": "fuzzy",
+      "patterns": [
+        "*/Start Menu/Programs/Administrative Tools*",
+        "*/Start Menu/Programs/Windows Administrative Tools*",
+        "*/Start Menu/Programs/Windows Tools*"
+      ],
+      "reason": "Start Menu 'Administrative Tools' folder"
+    },
+    {
+      "id": "admin-tools-titles",
+      "group": "windows-admin-tools",
+      "field": "title",
+      "match": "exact",
+      "patterns": [
+        "Administrative Tools",
+        "Computer Management",
+        "dfrgui",
+        "Disk Cleanup",
+        "iSCSI Initiator",
+        "Memory Diagnostics Tool",
+        "ODBC Data Sources (32-bit)",
+        "ODBC Data Sources (64-bit)",
+        "Performance Monitor",
+        "RecoveryDrive",
+        "System Configuration",
+        "System Information",
+        "Task Scheduler",
+        "Steps Recorder",
+        "Windows Fax and Scan"
+      ],
+      "reason": "Built-in admin/diagnostic consoles"
+    },
+
+    {
+      "id": "accessibility-folder",
+      "group": "windows-accessibility",
+      "field": "shortcut",
+      "match": "fuzzy",
+      "patterns": ["*/Start Menu/Programs/Accessibility/*", "*/Start Menu/Programs/Accessibility.lnk"],
+      "reason": "Start Menu 'Accessibility' folder"
+    },
+    {
+      "id": "accessibility-titles",
+      "group": "windows-accessibility",
+      "field": "title",
+      "match": "exact",
+      "patterns": ["LiveCaptions", "Magnify", "Narrator", "On-Screen Keyboard", "VoiceAccess"],
+      "reason": "Built-in accessibility tools"
+    },
+
+    {
+      "id": "known-product-helpers",
+      "group": "known-product-helpers",
+      "field": "title",
+      "match": "fuzzy",
+      "patterns": ["Office Language Preferences", "Google Password Manager*"],
+      "reason": "Microsoft Office and Chrome helper shortcuts"
+    },
+    {
+      "id": "known-product-targets",
+      "group": "known-product-helpers",
+      "field": "target",
+      "match": "fuzzy",
+      "patterns": ["*/DesktopOverlayHost.exe", "*/SETLANG.EXE"],
+      "reason": "RivaTuner overlay host and Office language switcher"
+    }
+  ]
+}

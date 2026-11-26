@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Discovering the applications installed on a Windows PC"
+build = "build.rs"
 
 [dependencies]
 heronite-data = { path = "../data" }
@@ -11,6 +12,8 @@ heronite-platform = { path = "../platform" }
 log.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+dirs = "6"
 
 [dev-dependencies]
 tempfile = "3"
